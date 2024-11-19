@@ -1,0 +1,2 @@
+git+https://github.com/joaopfonseca/ml-research[optional, tests]
+xgboost
