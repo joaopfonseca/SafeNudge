@@ -58,12 +58,10 @@ CONFIG = {
             {
                 "n_estimators": [10, 100, 1000],
                 "max_depth": [5, 10],
-            }
+            },
         ),
     ],
-    "SCORING": [
-        "precision", "recall", "f1", "accuracy"
-    ],
+    "SCORING": ["precision", "recall", "f1", "accuracy"],
     "N_SPLITS": 5,
     "N_RUNS": 3,
     "RANDOM_STATE": 42,
@@ -81,8 +79,7 @@ if __name__ == "__main__":
 
     # Produce SBERT output embeddings
     embedder = SentenceTransformer(
-        model_name_or_path="all-MiniLM-L6-v2",
-        similarity_fn_name="cosine"
+        model_name_or_path="all-MiniLM-L6-v2", similarity_fn_name="cosine"
     )
     X = embedder.encode(df["response"])
     y = df["response_type"].astype(int).values
