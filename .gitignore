@@ -1,3 +1,8 @@
+# Analysis files
+experiments/analysis/*.csv
+experiments/analysis/*.pdf
+experiments/analysis/*.tex
+
 # Pytorch-lightning logs
 lightning_logs/
 
