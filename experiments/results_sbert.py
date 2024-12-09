@@ -6,14 +6,17 @@ TODO:
 # Base
 from os.path import join, dirname
 from copy import deepcopy
+import pickle
 
 # Core
+from tqdm.auto import tqdm
+import numpy as np
 import pandas as pd
 from sklearn.base import clone
 
 # Models / sklearn stuff
 from imblearn.base import BaseSampler
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import GroupKFold
 from sklearn.compose import ColumnTransformer
 from sklearn.dummy import DummyClassifier
 from sklearn.linear_model import LogisticRegression
@@ -22,6 +25,7 @@ from sklearn.neural_network import MLPClassifier
 from xgboost import XGBClassifier
 
 # HuggingFace stuff
+from transformers import AutoTokenizer
 from sentence_transformers import SentenceTransformer
 
 # Own
@@ -107,13 +111,17 @@ CONFIG = {
 }
 
 
-def get_response_embeddings(df):
+def remove_jailbreak_target(row):
+    if row['response_type'] == 1.0:
+        idx = row['response'].find('\n\n')
+        if idx > -1:
+            return row['response'][idx+2:]
+    return row['response']
+
+
+def get_response_embeddings(df, embedder):
     df = df.copy()
 
-    # Load SBERT model
-    embedder = SentenceTransformer(
-        model_name_or_path="all-MiniLM-L6-v2", similarity_fn_name="cosine"
-    )
     df_ = pd.DataFrame(embedder.encode(df["response"].tolist()))
     df_.columns = df_.columns.astype(str)
     df_["response_type"] = df["response_type"]
@@ -122,8 +130,7 @@ def get_response_embeddings(df):
 
 
 def refit_optimal_params(X, y, pipelines, experiment):
-    res = deepcopy(experiment.cv_results_)
-    df_res = pd.DataFrame(res)
+    df_res = deepcopy(experiment)
     columns = ["param_est_name", "params", "mean_test_f1"]
     opt_params = (
         df_res[columns]
@@ -142,14 +149,34 @@ def refit_optimal_params(X, y, pipelines, experiment):
     return pipelines_optimal
 
 
+def get_generation_scores(response, tokenizer, embedder, clf):
+    tokens = tokenizer.batch_decode(
+        tokenizer(response)['input_ids'],
+        skip_special_tokens=True,
+        clean_up_tokenization_spaces=True
+    )
+    scores = [
+        clf.predict_proba(
+            [embedder.encode("".join(tokens[:i]))]
+        )[0][1]
+        for i in range(len(tokens))
+    ]
+    return scores
+
+
 if __name__ == "__main__":
+
+    # Load SBERT model
+    embedder = SentenceTransformer(
+        model_name_or_path="all-MiniLM-L6-v2", similarity_fn_name="cosine"
+    )
+
     df = pd.read_csv(
         join(DATA_PATH, "train_dataset_A_B_llama2024_11_22_17_15_01_280007.csv")
     )
-    df_oos = pd.read_csv(join(DATA_PATH, "test_data.csv"))
-
-    df = get_response_embeddings(df)
-    df_oos = get_response_embeddings(df_oos)
+    df['response'] = df.apply(remove_jailbreak_target, axis=1)
+    prompts = df["prompt"].values
+    df = get_response_embeddings(df, embedder)
 
     df["source"] = (
         ["harmful" for _ in range(1300)]
@@ -169,28 +196,31 @@ if __name__ == "__main__":
         n_runs=CONFIG["N_RUNS"],
     )
 
+    group_kfold = GroupKFold(
+        n_splits=CONFIG["N_SPLITS"],
+    )
+    splits = group_kfold.split(X, y, prompts)
     experiment_b = ModelSearchCV(
         estimators=pipelines,
         param_grids=params,
         scoring=CONFIG["SCORING"],
         n_jobs=CONFIG["N_JOBS"],
-        cv=StratifiedKFold(
-            n_splits=CONFIG["N_SPLITS"],
-            shuffle=True,
-            random_state=CONFIG["RANDOM_STATE"],
-        ),
+        cv=splits,
         verbose=2,
         return_train_score=True,
         refit=False,
     ).fit(X, y)
 
     # Save results
-    filename = join(RESULTS_PATH, "param_tuning_results_dataset_B.pkl")
-    pd.DataFrame(experiment_b.cv_results_).to_pickle(filename)
+    filename = join(RESULTS_PATH, "param_tuning_results_dataset_B_sbert.pkl")
+    experiment_b = pd.DataFrame(experiment_b.cv_results_)
+    experiment_b.to_pickle(filename)
     pipelines_b = refit_optimal_params(X, y, pipelines, experiment_b)
 
     # DATASET A: WITHOUT BENIGN PROMPTS/OUTPUTS
-    df = df[df["source"] != "benign"]
+    benign_mask = df["source"] != "benign"
+    df = df[benign_mask]
+    prompts = prompts[benign_mask]
     X = df.drop(columns="response_type")
     y = df["response_type"].astype(int).values
 
@@ -201,34 +231,85 @@ if __name__ == "__main__":
         n_runs=CONFIG["N_RUNS"],
     )
 
+    group_kfold = GroupKFold(
+        n_splits=CONFIG["N_SPLITS"],
+    )
+    splits = group_kfold.split(X, y, prompts)
     experiment_a = ModelSearchCV(
         estimators=pipelines,
         param_grids=params,
         scoring=CONFIG["SCORING"],
         n_jobs=CONFIG["N_JOBS"],
-        cv=StratifiedKFold(
-            n_splits=CONFIG["N_SPLITS"],
-            shuffle=True,
-            random_state=CONFIG["RANDOM_STATE"],
-        ),
+        cv=splits,
         verbose=2,
         return_train_score=True,
         refit=False,
     ).fit(X, y)
 
     # Save results
-    filename = join(RESULTS_PATH, "param_tuning_results_dataset_A.pkl")
+    filename = join(RESULTS_PATH, "param_tuning_results_dataset_A_sbert.pkl")
     pd.DataFrame(experiment_a.cv_results_).to_pickle(filename)
-    # pipelines_a = refit_optimal_params(X, y, pipelines, experiment_a)
 
-    # OUT OF SAMPLE TESTING
-    X_oos = df_oos.drop(columns="response_type")
-    y_oos = df_oos["response_type"].astype(int).values
+    # OUT OF SAMPLE TESTING - MODELS TESTED ON DATASET B ONLY
+    for llm_name in ["llama", "mistral"]:
+        df_oos = pd.read_csv(
+            join(DATA_PATH, f"oos_test_dataset_{llm_name}_2024_11_25.csv")
+        )
+        df_oos['response'] = df_oos.apply(remove_jailbreak_target, axis=1)
+        df_oos = get_response_embeddings(df_oos)
 
-    results_oos = {"target": y_oos}
+        X_oos = df_oos.drop(columns="response_type")
+        y_oos = df_oos["response_type"].astype(int).values
+
+        results_oos = {"target": y_oos}
+        for est_name in pipelines_b.keys():
+            results_oos[est_name] = pipelines_b[est_name].predict_proba(X_oos)[:, 1]
+
+        # Save results
+        filename = join(RESULTS_PATH, f"out_of_sample_results_{llm_name}_sbert.pkl")
+        pd.DataFrame(results_oos).to_pickle(filename)
+
+    # Save classifiers
     for est_name in pipelines_b.keys():
-        results_oos[est_name] = pipelines_b[est_name].predict_proba(X_oos)[:, 1]
+        pickle.dump(
+            pipelines_b[est_name],
+            open(
+                join(RESULTS_PATH, f"MODEL_{est_name.replace('|', '_')}_sbert.pkl"),
+                "wb"
+            )
+        )
 
-    # Save results
-    filename = join(RESULTS_PATH, "out_of_sample_results.pkl")
-    pd.DataFrame(results_oos).to_pickle(filename)
+    # Get scores over 100 benefic, 100 dangerous prompts over "time"
+    # Using MLP, for Llama outputs
+    print("Generating scores over 'time'")
+    model_path = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+    df_oos = pd.read_csv(
+        join(DATA_PATH, "oos_test_dataset_llama_2024_11_25.csv")
+    )
+    df_oos['response'] = df_oos.apply(remove_jailbreak_target, axis=1)
+    df_oos = (
+        df_oos
+        .groupby(["prompt"])
+        .sample(1, random_state=CONFIG["RANDOM_STATE"])
+        .groupby(["response_type"])
+        .sample(100, random_state=CONFIG["RANDOM_STATE"])
+    )
+    clf = pipelines_b["HBI|DROP|MLP"].steps[-1][-1]
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_path, use_safetensors=True
+    )
+
+    response_score_data = [
+        get_generation_scores(response, tokenizer, embedder, clf)
+        for response in tqdm(df_oos["response"])
+    ]
+    max_len_tokens = max([len(resp_scores) for resp_scores in response_score_data])
+    response_score_data = [
+        resp_scores + [np.nan for _ in range(max_len_tokens - len(resp_scores))]
+        for resp_scores in response_score_data
+    ]
+    df_oos_time = pd.DataFrame(response_score_data)
+    df_oos_time["response"] = df_oos["response"].tolist()
+    df_oos_time["response_type"] = df_oos["response_type"].tolist()
+    filename = join(RESULTS_PATH, "oos_time_scores_sbert.pkl")
+    df_oos_time.to_pickle(filename)
