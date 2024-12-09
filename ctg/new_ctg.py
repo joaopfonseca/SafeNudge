@@ -169,7 +169,7 @@ class CTG(ModelWrapper):
                 _, last_hidden_state = self._forward_pass_from_ids(input_ids)
                 if verbose:
                     print("\n")
-                return sentence, last_hidden_state
+                return sentence, last_hidden_state, nudged
 
             if self.tokenizer.name_or_path.find("mistral") > -1:
                 next_token_str = self.tokenizer.convert_ids_to_tokens(
@@ -192,7 +192,8 @@ class CTG(ModelWrapper):
                 input_ids = torch.cat(
                     (input_ids, torch.tensor(nudge_ids).reshape(1, -1)), dim=1
                 )
-                print("|||", end="")
+                if verbose:
+                    print("|||", end="")
                 nudged = True
             else:
                 sentence += next_token_str
