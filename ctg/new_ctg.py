@@ -141,7 +141,6 @@ class CTG(ModelWrapper):
         self, prompt, clf, target="", tau=0.5, max_tokens=100, verbose=False
     ):
         nudged = False
-        # print("DEBUG::GPU memory:: ", torch.cuda.memory_allocated(0))
         input = [
             {"role": "user", "content": prompt},
             {"role": "assistant", "content": target},
@@ -155,7 +154,6 @@ class CTG(ModelWrapper):
 
         j = 0
         while True:
-            print("DEBUG::GPU memory:: ", torch.cuda.memory_allocated(0))
             logits_top, logits_top_idx, last_hidden_state = (
                 self.get_top_logits_from_ids(input_ids)
             )

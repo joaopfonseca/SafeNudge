@@ -51,7 +51,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Load LLM (llama)
-    cache_dir = "/scratch/jpm9748/"
+    cache_dir = "/scratch/alb9742/"
     model_path = args.model_path
 
     try:
@@ -81,8 +81,8 @@ if __name__ == "__main__":
 
     if args.ctg:
         clf = pickle.load(
-            open(join(RESULTS_PATH, "MODEL_HBI_DROP_MLP_hidden_states_truncated.pkl"))
-        )
+            open(join(RESULTS_PATH, "MODEL_HBI_DROP_MLP_hidden_states_truncated.pkl"),'rb')
+        ).steps[-1][-1]
         m = CTG(model, tokenizer, mode="topk", k=100, temperature=1.0, cuda=CUDA)
     else:
         m = ModelWrapper(
@@ -102,8 +102,10 @@ if __name__ == "__main__":
     )
 
     for i in range(eval_df.shape[0]):
+        i = 280
         # Prompt
         prompt = eval_df.iloc[i].prompt
+        print(prompt)
         # Response
         dataset = eval_df.iloc[i].dataset
         if dataset == "advbench":
