@@ -112,11 +112,11 @@ CONFIG = {
 
 
 def remove_jailbreak_target(row):
-    if row['response_type'] == 1.0:
-        idx = row['response'].find('\n\n')
+    if row["response_type"] == 1.0:
+        idx = row["response"].find("\n\n")
         if idx > -1:
-            return row['response'][idx+2:]
-    return row['response']
+            return row["response"][idx + 2 :]
+    return row["response"]
 
 
 def get_response_embeddings(df, embedder):
@@ -151,14 +151,12 @@ def refit_optimal_params(X, y, pipelines, experiment):
 
 def get_generation_scores(response, tokenizer, embedder, clf):
     tokens = tokenizer.batch_decode(
-        tokenizer(response)['input_ids'],
+        tokenizer(response)["input_ids"],
         skip_special_tokens=True,
-        clean_up_tokenization_spaces=True
+        clean_up_tokenization_spaces=True,
     )
     scores = [
-        clf.predict_proba(
-            [embedder.encode("".join(tokens[:i]))]
-        )[0][1]
+        clf.predict_proba([embedder.encode("".join(tokens[:i]))])[0][1]
         for i in range(len(tokens))
     ]
     return scores
@@ -174,7 +172,7 @@ if __name__ == "__main__":
     df = pd.read_csv(
         join(DATA_PATH, "train_dataset_A_B_llama2024_11_22_17_15_01_280007.csv")
     )
-    df['response'] = df.apply(remove_jailbreak_target, axis=1)
+    df["response"] = df.apply(remove_jailbreak_target, axis=1)
     prompts = df["prompt"].values
     df = get_response_embeddings(df, embedder)
 
@@ -255,7 +253,7 @@ if __name__ == "__main__":
         df_oos = pd.read_csv(
             join(DATA_PATH, f"oos_test_dataset_{llm_name}_2024_11_25.csv")
         )
-        df_oos['response'] = df_oos.apply(remove_jailbreak_target, axis=1)
+        df_oos["response"] = df_oos.apply(remove_jailbreak_target, axis=1)
         df_oos = get_response_embeddings(df_oos)
 
         X_oos = df_oos.drop(columns="response_type")
@@ -275,29 +273,24 @@ if __name__ == "__main__":
             pipelines_b[est_name],
             open(
                 join(RESULTS_PATH, f"MODEL_{est_name.replace('|', '_')}_sbert.pkl"),
-                "wb"
-            )
+                "wb",
+            ),
         )
 
     # Get scores over 100 benefic, 100 dangerous prompts over "time"
     # Using MLP, for Llama outputs
     print("Generating scores over 'time'")
     model_path = "meta-llama/Meta-Llama-3.1-8B-Instruct"
-    df_oos = pd.read_csv(
-        join(DATA_PATH, "oos_test_dataset_llama_2024_11_25.csv")
-    )
-    df_oos['response'] = df_oos.apply(remove_jailbreak_target, axis=1)
+    df_oos = pd.read_csv(join(DATA_PATH, "oos_test_dataset_llama_2024_11_25.csv"))
+    df_oos["response"] = df_oos.apply(remove_jailbreak_target, axis=1)
     df_oos = (
-        df_oos
-        .groupby(["prompt"])
+        df_oos.groupby(["prompt"])
         .sample(1, random_state=CONFIG["RANDOM_STATE"])
         .groupby(["response_type"])
         .sample(100, random_state=CONFIG["RANDOM_STATE"])
     )
     clf = pipelines_b["HBI|DROP|MLP"].steps[-1][-1]
-    tokenizer = AutoTokenizer.from_pretrained(
-        model_path, use_safetensors=True
-    )
+    tokenizer = AutoTokenizer.from_pretrained(model_path, use_safetensors=True)
 
     response_score_data = [
         get_generation_scores(response, tokenizer, embedder, clf)

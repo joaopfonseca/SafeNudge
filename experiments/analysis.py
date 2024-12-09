@@ -28,10 +28,8 @@ def _format_dataset(row):
 
 
 def get_mean_sem_results(results):
-    results = (
-        results
-        .groupby("param_est_name")
-        .apply(lambda df: df.iloc[df["mean_test_f1"].argmax()], include_groups=False)
+    results = results.groupby("param_est_name").apply(
+        lambda df: df.iloc[df["mean_test_f1"].argmax()], include_groups=False
     )
     mean_sem = []
     for ms in ["mean_test_", "std_test_"]:
@@ -63,15 +61,10 @@ def get_oos_performance_score(results, threshold=0.5):
     metrics = CONFIG["SCORING"]
     metrics = {m: get_scorer(m)._score_func for m in metrics}
     results = pd.DataFrame(
-        {
-            m: results.apply(lambda col: metrics[m](col, target))
-            for m in metrics.keys()
-        }
+        {m: results.apply(lambda col: metrics[m](col, target)) for m in metrics.keys()}
     )
     results["Dataset"] = "B"
-    results["Dataset"] = results.apply(
-        lambda row: _format_dataset(row)[0], axis=1
-    )
+    results["Dataset"] = results.apply(lambda row: _format_dataset(row)[0], axis=1)
     results["Model"] = results.apply(lambda x: x.name.split("|")[-1], axis=1)
     results.sort_values("Dataset", inplace=True)
     results = results[["Dataset", "Model", *results.columns[:-2]]]
@@ -114,7 +107,7 @@ if __name__ == "__main__":
         validation.
         """,
         label="tbl:kfold-results",
-        index=False
+        index=False,
     )
 
     # Analyze OOS results
@@ -126,8 +119,7 @@ if __name__ == "__main__":
             join(RESULTS_PATH, f"out_of_sample_results_{llm_name}.pkl")
         )
         results = results[
-            results.columns[results.columns.str.startswith("HBI")].tolist()
-            + ["target"]
+            results.columns[results.columns.str.startswith("HBI")].tolist() + ["target"]
         ]
         results.columns = results.columns.str.replace("HBI|DROP|", "")
         results.drop(columns="CONSTANT", inplace=True)
@@ -135,22 +127,20 @@ if __name__ == "__main__":
         # Line charts for benign and dangerous
         for true_target in range(2):
             target_type = "dangerous" if true_target else "benign"
-            make_oos_line_chart(
-                results, true_target=true_target  # , ax=axes[i]
-            )
+            make_oos_line_chart(results, true_target=true_target)  # , ax=axes[i]
 
             plt.ylabel(r"Rejection (\%)")
             plt.legend(
                 labels=results.columns.drop("target"),
                 loc="lower center",
-                ncol=results.columns.size-1,
-                bbox_to_anchor=(0, 0.9, 1, 0.5)
+                ncol=results.columns.size - 1,
+                bbox_to_anchor=(0, 0.9, 1, 0.5),
             )
             plt.savefig(
                 join(ANALYSIS_PATH, f"linechart_{target_type}_{llm_name}.pdf"),
                 format="pdf",
                 bbox_inches="tight",
-                transparent=True
+                transparent=True,
             )
             # axes[i].legend([])
             # axes[i].set_xlabel(f"{llm_name.title()} / {target_type}")
@@ -171,7 +161,7 @@ if __name__ == "__main__":
             ($\\tau = {threshold}$).
             """,
             label=f"tbl:oos-performance-{llm_name}",
-            index=False
+            index=False,
         )
 
     # axes[0].set_ylabel(r"Rejection (%)")
@@ -198,11 +188,11 @@ if __name__ == "__main__":
         df_time_scores[df_time_scores["variable"] < 100],
         x="variable",
         y="value",
-        hue="response_type"
+        hue="response_type",
     )
     plt.savefig(
         join(ANALYSIS_PATH, "linechart_scores_over_time_oos_100_each_type.pdf"),
         format="pdf",
         bbox_inches="tight",
-        transparent=True
+        transparent=True,
     )

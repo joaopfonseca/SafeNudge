@@ -183,7 +183,10 @@ class CTG(ModelWrapper):
             # Check if next token would be dangerous
             if (
                 j >= 5
-                and clf.predict(last_hidden_state.numpy().reshape(1, -1)) == 1
+                and (
+                    clf.predict_proba(last_hidden_state.numpy().reshape(1, -1))[:, 1]
+                    >= tau
+                )
                 and not nudged
             ):
                 nudge_ids = self.tokenizer(CTG.NUDGE + sentence)["input_ids"][1:]

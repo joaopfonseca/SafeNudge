@@ -6,6 +6,7 @@ import argparse
 import time
 
 import sys
+
 PROJ_PATH = join(dirname(__file__), pardir)
 sys.path.append(PROJ_PATH)
 
@@ -29,29 +30,28 @@ from mlresearch.utils import check_pipelines
 # Experiments / model wrappers
 DATA_PATH = "data/"
 RESULTS_PATH = "results/"
-from ctg import ModelWrapper
+from ctg.new_ctg import ModelWrapper, CTG
 from ctg.perplexity import PerplexityCustom
 
-#model_paths = ['meta-llama/Meta-Llama-3.1-8B-Instruct',
+# model_paths = ['meta-llama/Meta-Llama-3.1-8B-Instruct',
 #               'Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2',
 #               'meta-llama/Llama-Guard-3-8B']
 
+
 def load_evaluation_prompts():
-    df = pd.read_csv(
-        join(DATA_PATH, "evaluation_prompts.csv")
-    )
-    
+    df = pd.read_csv(join(DATA_PATH, "evaluation_prompts.csv"))
+
     return df
-    
+
 
 if __name__ == "__main__":
-    parser=argparse.ArgumentParser()
+    parser = argparse.ArgumentParser()
     parser.add_argument("--model_path", help="model path for experiment", type=str)
-    parser.add_argument("--ctg", help="model path for experiment", action='store_true')
-    args=parser.parse_args()
+    parser.add_argument("--ctg", help="model path for experiment", action="store_true")
+    args = parser.parse_args()
 
     # Load LLM (llama)
-    cache_dir = "/scratch/alb9742/"
+    cache_dir = "/scratch/jpm9748/"
     model_path = args.model_path
 
     try:
@@ -68,24 +68,38 @@ if __name__ == "__main__":
         else:
             print("DEBUG::Model already on Cuda.")
             print("DEBUG::GPU memory:: ", torch.cuda.memory_allocated(0))
-    except:
+    except:  # noqa
         model = AutoModelForCausalLM.from_pretrained(
             model_path, cache_dir=cache_dir, use_safetensors=True
         )
 
         CUDA = False
 
-    
     tokenizer = AutoTokenizer.from_pretrained(
         model_path, cache_dir=cache_dir, use_safetensors=True
     )
-    
-    m = ModelWrapper(
-        model, tokenizer, mode="topk", k=100, temperature=1.0, cuda=CUDA
-    )
+
+    if args.ctg:
+        clf = pickle.load(
+            open(join(RESULTS_PATH, "MODEL_HBI_DROP_MLP_hidden_states_truncated.pkl"))
+        )
+        m = CTG(model, tokenizer, mode="topk", k=100, temperature=1.0, cuda=CUDA)
+    else:
+        m = ModelWrapper(
+            model, tokenizer, mode="topk", k=100, temperature=1.0, cuda=CUDA
+        )
 
     eval_df = load_evaluation_prompts()
-    results_df = pd.DataFrame(columns=['dataset','prompt','response','ppl_score','inference_time','num_of_tokens'])
+    results_df = pd.DataFrame(
+        columns=[
+            "dataset",
+            "prompt",
+            "response",
+            "ppl_score",
+            "inference_time",
+            "num_of_tokens",
+        ]
+    )
 
     for i in range(eval_df.shape[0]):
         # Prompt
@@ -97,39 +111,48 @@ if __name__ == "__main__":
         else:
             target = ""
 
-        
         start_time = time.time()
         # Response
         if args.ctg:
             # Implement CTG code
-            pass
+            response, _ = m.generate_moderated(
+                prompt=prompt, clf=clf, target=target, max_tokens=250, verbose=True
+            )
         else:
-            response, _ = m.generate(prompt=prompt, target=target, max_tokens=250, verbose=True)
-        
+            response, _ = m.generate(
+                prompt=prompt, target=target, max_tokens=250, verbose=True
+            )
+
         end_time = time.time()
         # Inference time
         inference_time = end_time - start_time
 
         # Num of tokens
-        tokens = tokenizer.batch_decode(tokenizer(response)['input_ids'], skip_special_tokens = True, clean_up_tokenization_spaces = True)
+        tokens = tokenizer.batch_decode(
+            tokenizer(response)["input_ids"],
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=True,
+        )
         num_of_tokens = len(tokens)
 
         # PPL
-        #perplexity = 
-        #print(perplexity)
+        # perplexity =
+        # print(perplexity)
         p = PerplexityCustom()
-        score = p.compute(predictions=[prompt], model=model, tokenizer=tokenizer)['perplexities'][0]
+        score = p.compute(predictions=[prompt], model=model, tokenizer=tokenizer)[
+            "perplexities"
+        ][0]
 
         r = {
-            'dataset': dataset,
-            'prompt': prompt,
-            'response': response,
-            'ppl_score': score,
-            'inference_time': inference_time,
-            'num_of_tokens': num_of_tokens
+            "dataset": dataset,
+            "prompt": prompt,
+            "response": response,
+            "ppl_score": score,
+            "inference_time": inference_time,
+            "num_of_tokens": num_of_tokens,
         }
 
         results_df.loc[len(results_df)] = r
 
-    filename = f"{RESULTS_PATH}evaluation_responses_{model_path.replace('/', '-')}.pkl"
+    filename = f"{RESULTS_PATH}evaluation_responses_{model_path.replace('/', '-')}_ctg_{args.ctg}.pkl"
     results_df.to_pickle(filename)

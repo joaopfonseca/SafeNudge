@@ -17,6 +17,7 @@ from mlresearch.model_selection import ModelSearchCV
 from mlresearch.utils import check_pipelines
 
 import sys
+
 PROJ_PATH = join(dirname(__file__), pardir)
 sys.path.append(PROJ_PATH)
 
@@ -26,7 +27,7 @@ from experiments.results_sbert import (
     RESULTS_PATH,
     CONFIG,
     refit_optimal_params,
-    remove_jailbreak_target
+    remove_jailbreak_target,
 )
 from experiments.results_hidden_states import (
     get_hidden_states,
@@ -57,14 +58,12 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(
         model_path, cache_dir=cache_dir, use_safetensors=True
     )
-    m = ModelWrapper(
-        model, tokenizer, mode="topk", k=100, temperature=0.3, cuda=CUDA
-    )
+    m = ModelWrapper(model, tokenizer, mode="topk", k=100, temperature=0.3, cuda=CUDA)
 
     df = pd.read_csv(
         join(DATA_PATH, "train_dataset_A_B_llama2024_11_22_17_15_01_280007.csv")
     )
-    df['response'] = df.apply(remove_jailbreak_target, axis=1)
+    df["response"] = df.apply(remove_jailbreak_target, axis=1)
     prompts = df["prompt"].values
     print("Getting Dataset's A and B hidden states...")
     filename = join(RESULTS_PATH, "hidden_states_truncated.pkl")
@@ -155,10 +154,8 @@ if __name__ == "__main__":
 
     # OUT OF SAMPLE TESTING - MODELS TESTED ON DATASET B ONLY
     llm_name = "llama"
-    df_oos = pd.read_csv(
-        join(DATA_PATH, f"oos_test_dataset_{llm_name}_2024_11_25.csv")
-    )
-    df_oos['response'] = df_oos.apply(remove_jailbreak_target, axis=1)
+    df_oos = pd.read_csv(join(DATA_PATH, f"oos_test_dataset_{llm_name}_2024_11_25.csv"))
+    df_oos["response"] = df_oos.apply(remove_jailbreak_target, axis=1)
 
     print("Getting OOS hidden states...")
     filename = join(RESULTS_PATH, "hidden_states_truncated_oos.pkl")
@@ -188,30 +185,25 @@ if __name__ == "__main__":
             open(
                 join(
                     RESULTS_PATH,
-                    f"MODEL_{est_name.replace('|', '_')}_hidden_states_truncated.pkl"
+                    f"MODEL_{est_name.replace('|', '_')}_hidden_states_truncated.pkl",
                 ),
-                "wb"
-            )
+                "wb",
+            ),
         )
 
     # Get scores over 100 benefic, 100 dangerous prompts over "time"
     # Using MLP, for Llama outputs
     print("Generating scores over 'time'")
     model_path = "meta-llama/Meta-Llama-3.1-8B-Instruct"
-    df_oos = pd.read_csv(
-        join(DATA_PATH, "oos_test_dataset_llama_2024_11_25.csv")
-    )
+    df_oos = pd.read_csv(join(DATA_PATH, "oos_test_dataset_llama_2024_11_25.csv"))
     df_oos = (
-        df_oos
-        .groupby(["prompt"])
+        df_oos.groupby(["prompt"])
         .sample(1, random_state=CONFIG["RANDOM_STATE"])
         .groupby(["response_type"])
         .sample(100, random_state=CONFIG["RANDOM_STATE"])
     )
     clf = pipelines_b["HBI|DROP|MLP"].steps[-1][-1]
-    tokenizer = AutoTokenizer.from_pretrained(
-        model_path, use_safetensors=True
-    )
+    tokenizer = AutoTokenizer.from_pretrained(model_path, use_safetensors=True)
 
     response_score_data = [
         get_generation_scores(prompt, response, model, clf)
@@ -227,4 +219,3 @@ if __name__ == "__main__":
     df_oos_time["response_type"] = df_oos["response_type"].tolist()
     filename = join(RESULTS_PATH, "oos_time_scores_hidden_states_truncated.pkl")
     df_oos_time.to_pickle(filename)
-
