@@ -102,7 +102,6 @@ if __name__ == "__main__":
     )
 
     for i in range(eval_df.shape[0]):
-        i = 280
         # Prompt
         prompt = eval_df.iloc[i].prompt
         print(prompt)
