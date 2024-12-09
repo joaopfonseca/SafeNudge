@@ -51,7 +51,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Load LLM (llama)
-    cache_dir = "/scratch/alb9742/"
+    cache_dir = "/scratch/jpm9748/"
     model_path = args.model_path
 
     try:
@@ -98,13 +98,14 @@ if __name__ == "__main__":
             "ppl_score",
             "inference_time",
             "num_of_tokens",
+            "nudged"
         ]
     )
 
     for i in range(eval_df.shape[0]):
         # Prompt
         prompt = eval_df.iloc[i].prompt
-        print(prompt)
+        # print(prompt)
         # Response
         dataset = eval_df.iloc[i].dataset
         if dataset == "advbench":
@@ -116,13 +117,14 @@ if __name__ == "__main__":
         # Response
         if args.ctg:
             # Implement CTG code
-            response, _ = m.generate_moderated(
-                prompt=prompt, clf=clf, target=target, max_tokens=250, verbose=True
+            response, _, nudged = m.generate_moderated(
+                prompt=prompt, clf=clf, target=target, max_tokens=250, verbose=False
             )
         else:
             response, _ = m.generate(
-                prompt=prompt, target=target, max_tokens=250, verbose=True
+                prompt=prompt, target=target, max_tokens=250, verbose=False
             )
+            nudged = False
 
         end_time = time.time()
         # Inference time
@@ -151,6 +153,7 @@ if __name__ == "__main__":
             "ppl_score": score,
             "inference_time": inference_time,
             "num_of_tokens": num_of_tokens,
+            "nudged": nudged
         }
 
         results_df.loc[len(results_df)] = r
