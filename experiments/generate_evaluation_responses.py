@@ -47,6 +47,7 @@ def load_evaluation_prompts():
 if __name__ == "__main__":
     parser=argparse.ArgumentParser()
     parser.add_argument("--model_path", help="model path for experiment", type=str)
+    parser.add_argument("--ctg", help="model path for experiment", action='store_true')
     args=parser.parse_args()
 
     # Load LLM (llama)
@@ -99,7 +100,12 @@ if __name__ == "__main__":
         
         start_time = time.time()
         # Response
-        response, _ = m.generate(prompt=prompt, target=target, max_tokens=250, verbose=True)
+        if args.ctg:
+            # Implement CTG code
+            pass
+        else:
+            response, _ = m.generate(prompt=prompt, target=target, max_tokens=250, verbose=True)
+        
         end_time = time.time()
         # Inference time
         inference_time = end_time - start_time
