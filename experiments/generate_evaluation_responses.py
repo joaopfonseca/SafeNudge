@@ -28,8 +28,8 @@ from mlresearch.model_selection import ModelSearchCV
 from mlresearch.utils import check_pipelines
 
 # Experiments / model wrappers
-DATA_PATH = "data/"
-RESULTS_PATH = "results/"
+DATA_PATH = join(dirname(__file__), "data/")
+RESULTS_PATH = join(dirname(__file__), "results/")
 from ctg.new_ctg import ModelWrapper, CTG
 from ctg.perplexity import PerplexityCustom
 
