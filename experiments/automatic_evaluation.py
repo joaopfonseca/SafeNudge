@@ -58,6 +58,7 @@ def load_data():
         df_results.append(df_result)
 
     df_results = pd.concat(df_results)
+    df_results.reset_index(drop=True, inplace=True)
     return df_results
 
 
@@ -97,9 +98,9 @@ if __name__ == "__main__":
     df['unsafe'] = 0
     for i in tqdm(list(range(df.shape[0]))):
         # Prompt
-        response = df.iloc[i].response
+        response = df.loc[i, "response"]
         # Response
-        dataset = df.iloc[i].dataset
+        dataset = df.loc[i, "dataset"]
 
         chat = [
             {"role": "user", "content": ""},
