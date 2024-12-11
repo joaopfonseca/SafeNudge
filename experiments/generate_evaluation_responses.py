@@ -18,6 +18,7 @@ import torch
 
 # Models / sklearn stuff
 from transformers import AutoTokenizer, AutoModelForCausalLM
+from sentence_transformers import SentenceTransformer
 from sklearn.model_selection import GroupKFold
 
 # HuggingFace stuff
@@ -30,6 +31,8 @@ from mlresearch.utils import check_pipelines
 # Experiments / model wrappers
 DATA_PATH = join(dirname(__file__), "data/")
 RESULTS_PATH = join(dirname(__file__), "results/")
+from experiments.results_sbert import TrainDataFilter
+from ctg.old_ctg import TokenMaskingCTG
 from ctg.new_ctg import ModelWrapper, CTG
 from ctg.perplexity import PerplexityCustom
 
@@ -47,7 +50,8 @@ def load_evaluation_prompts():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_path", help="model path for experiment", type=str)
-    parser.add_argument("--ctg", help="model path for experiment", action="store_true")
+    parser.add_argument("--ctg", help="moderate generation using proposed method", action="store_true")
+    parser.add_argument("--tokenmasking", help="use token masking approach", action="store_true")
     args = parser.parse_args()
 
     # Load LLM (llama)
@@ -84,6 +88,14 @@ if __name__ == "__main__":
             open(join(RESULTS_PATH, "MODEL_HBI_DROP_MLP_hidden_states_truncated.pkl"),'rb')
         ).steps[-1][-1]
         m = CTG(model, tokenizer, mode="topk", k=100, temperature=1.0, cuda=CUDA)
+    elif args.tokenmasking:
+        clf = pickle.load(
+            open(join(RESULTS_PATH, "MODEL_HBI_DROP_MLP_sbert.pkl"),'rb')
+        ).steps[-1][-1]
+        embedder = SentenceTransformer(
+            model_name_or_path="all-MiniLM-L6-v2", similarity_fn_name="cosine"
+        )
+        m = TokenMaskingCTG(model, tokenizer, mode="topk", k=100, temperature=1.0, cuda=CUDA)
     else:
         m = ModelWrapper(
             model, tokenizer, mode="topk", k=100, temperature=1.0, cuda=CUDA
@@ -120,6 +132,11 @@ if __name__ == "__main__":
             response, _, nudged = m.generate_moderated(
                 prompt=prompt, clf=clf, target=target, max_tokens=250, verbose=False
             )
+        elif args.tokenmasking:
+            response, _, nudged = m.generate_moderated(
+                prompt=prompt, embedder=embedder, clf=clf, target=target, max_tokens=250, verbose=False
+            )
+
         else:
             response, _ = m.generate(
                 prompt=prompt, target=target, max_tokens=250, verbose=False
@@ -158,5 +175,9 @@ if __name__ == "__main__":
 
         results_df.loc[len(results_df)] = r
 
-    filename = f"{RESULTS_PATH}evaluation_responses_{model_path.replace('/', '-')}_ctg_{args.ctg}.pkl"
+    if not args.tokenmasking:
+        filename = f"{RESULTS_PATH}evaluation_responses_{model_path.replace('/', '-')}_ctg_{args.ctg}.pkl"
+    else:
+        filename = f"{RESULTS_PATH}evaluation_responses_{model_path.replace('/', '-')}_tokenmasking_{args.tokenmasking}.pkl"
+
     results_df.to_pickle(filename)
