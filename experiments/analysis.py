@@ -216,7 +216,21 @@ if __name__ == "__main__":
         )
 
         # Evaluation responses analysis
-        # TODO: rewrite
-        # df_results = (
-        #     df_results.groupby(["model", "ctg", "dataset"]).mean(numeric_only=True)
-        # )
+        df_results = pd.read_csv(join(RESULTS_PATH, "final_results_table.csv"))
+        df_results.drop(columns="Unnamed: 0", inplace=True)
+
+        safe_ctg_unc = df_results[
+            (df_results["model"] == "Orenguteng-Llama-3.1-8B-Lexi-Uncensored-V2")
+            & (df_results["unsafe"] == 0)
+            & (df_results["method"] == "ctg")
+        ].prompt
+        unsafe_orig_unc = df_results[
+            (df_results["model"] == "Orenguteng-Llama-3.1-8B-Lexi-Uncensored-V2")
+            & (df_results["unsafe"] == 1)
+            & (df_results["method"] == "original")
+        ].prompt
+        disagreement_prompts = set(safe_ctg_unc) & set(unsafe_orig_unc)
+
+        df_results = (
+            df_results.groupby(["model", "method", "dataset"]).mean(numeric_only=True)
+        )
