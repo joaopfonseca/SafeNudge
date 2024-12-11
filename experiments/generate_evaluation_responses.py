@@ -87,7 +87,7 @@ if __name__ == "__main__":
         clf = pickle.load(
             open(join(RESULTS_PATH, "MODEL_HBI_DROP_MLP_hidden_states_truncated.pkl"),'rb')
         ).steps[-1][-1]
-        m = CTG(model, tokenizer, mode="topk", k=100, temperature=1.0, cuda=CUDA)
+        m = CTG(model, tokenizer, mode="topk", k=100, temperature=1.0, cuda=CUDA, random_state=42)
     elif args.tokenmasking:
         clf = pickle.load(
             open(join(RESULTS_PATH, "MODEL_HBI_DROP_MLP_sbert.pkl"),'rb')
@@ -95,10 +95,10 @@ if __name__ == "__main__":
         embedder = SentenceTransformer(
             model_name_or_path="all-MiniLM-L6-v2", similarity_fn_name="cosine"
         )
-        m = TokenMaskingCTG(model, tokenizer, mode="topk", k=100, temperature=1.0, cuda=CUDA)
+        m = TokenMaskingCTG(model, tokenizer, mode="topk", k=100, temperature=1.0, cuda=CUDA, random_state=42)
     else:
         m = ModelWrapper(
-            model, tokenizer, mode="topk", k=100, temperature=1.0, cuda=CUDA
+            model, tokenizer, mode="topk", k=100, temperature=1.0, cuda=CUDA, random_state=42
         )
 
     eval_df = load_evaluation_prompts()
@@ -159,7 +159,7 @@ if __name__ == "__main__":
         # perplexity =
         # print(perplexity)
         p = PerplexityCustom()
-        score = p.compute(predictions=[prompt], model=model, tokenizer=tokenizer)[
+        score = p.compute(predictions=[response], model=model, tokenizer=tokenizer)[
             "perplexities"
         ][0]
 
