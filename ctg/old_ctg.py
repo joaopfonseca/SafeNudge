@@ -52,9 +52,16 @@ class TokenMaskingCTG(ModelWrapper):
             probs_top = torch.nn.functional.softmax(
                 logits_top / self.temperature, dim=-1
             )
-            next_token = logits_top_idx[
-                self._rng.choice(len(logits_top_idx), p=probs_top.detach().numpy())
-            ]
+
+            if len(logits_top_idx) >= 1:
+                next_token = logits_top_idx[
+                    self._rng.choice(len(logits_top_idx), p=probs_top.detach().numpy())
+                ]
+            else:
+                _, last_hidden_state = self._forward_pass_from_ids(input_ids)
+                if verbose:
+                    print("\n")
+                return sentence, last_hidden_state, edited
 
             j += 1
             if (next_token.item() == self.tokenizer.eos_token_id) or (j > max_tokens):
@@ -62,6 +69,7 @@ class TokenMaskingCTG(ModelWrapper):
                 if verbose:
                     print("\n")
                 return sentence, last_hidden_state, edited
+
 
             if self.tokenizer.name_or_path.find("mistral") > -1:
                 next_token_str = self.tokenizer.convert_ids_to_tokens(

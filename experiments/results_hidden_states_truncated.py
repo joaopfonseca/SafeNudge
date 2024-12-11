@@ -33,7 +33,7 @@ from experiments.results_hidden_states import (
     get_hidden_states,
     get_generation_scores,
 )
-from ctg import ModelWrapper
+from ctg.new_ctg import ModelWrapper
 
 
 if __name__ == "__main__":

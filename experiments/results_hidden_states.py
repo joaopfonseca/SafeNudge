@@ -28,7 +28,7 @@ from experiments.results_sbert import (
     CONFIG,
     refit_optimal_params,
 )
-from ctg import ModelWrapper
+from ctg.new_ctg import ModelWrapper
 
 
 def get_hidden_states(df, model, verbose=1):
