@@ -54,8 +54,8 @@ def get_generation_scores(prompt, response, model, clf):
         {"role": "user", "content": prompt},
         {"role": "assistant", "content": ""},
     ]
-    input_tokens = tokenizer.batch_decode(model._get_ids(init_input))
-    output_tokens = tokenizer.batch_decode(model._get_ids(response))
+    input_tokens = model.tokenizer.batch_decode(model._get_ids(init_input))
+    output_tokens = model.tokenizer.batch_decode(model._get_ids(response))
     scores = [
         clf.predict_proba(
             [model.get_hidden_state(input_tokens + "".join(output_tokens[:i]))]
@@ -227,7 +227,7 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(model_path, use_safetensors=True)
 
     response_score_data = [
-        get_generation_scores(prompt, response, model, clf)
+        get_generation_scores(prompt, response, m, clf)
         for prompt, response in tqdm(list(zip(df_oos["prompt"], df_oos["response"])))
     ]
     max_len_tokens = max([len(resp_scores) for resp_scores in response_score_data])
