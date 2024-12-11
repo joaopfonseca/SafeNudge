@@ -206,7 +206,7 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(model_path, use_safetensors=True)
 
     response_score_data = [
-        get_generation_scores(prompt, response, model, clf)
+        get_generation_scores(prompt, response, m, clf)
         for prompt, response in tqdm(zip(df_oos["prompt"], df_oos["response"]))
     ]
     max_len_tokens = max([len(resp_scores) for resp_scores in response_score_data])
