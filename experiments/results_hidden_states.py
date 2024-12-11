@@ -22,13 +22,13 @@ PROJ_PATH = join(dirname(__file__), pardir)
 sys.path.append(PROJ_PATH)
 
 # Experiments / model wrappers
-from experiments.results_sbert import (
+from experiments.results_sbert import (  # noqa
     DATA_PATH,
     RESULTS_PATH,
     CONFIG,
     refit_optimal_params,
 )
-from ctg.new_ctg import ModelWrapper
+from ctg.new_ctg import ModelWrapper  # noqa
 
 
 def get_hidden_states(df, model, verbose=1):
@@ -55,7 +55,9 @@ def get_generation_scores(prompt, response, model, clf):
         {"role": "assistant", "content": ""},
     ]
     input_tokens = model.tokenizer.batch_decode(model._get_ids(init_input))
-    output_tokens = model.tokenizer.batch_decode(model._get_ids(response))
+    output_tokens = model.tokenizer.batch_decode(
+        model.tokenizer(response)["input_ids"][1:]
+    )
     scores = [
         clf.predict_proba(
             [model.get_hidden_state(input_tokens + "".join(output_tokens[:i]))]
