@@ -102,6 +102,12 @@ if __name__ == "__main__":
         # Response
         dataset = df.loc[i, "dataset"]
 
+        # Truncate response for advbench responses
+        if dataset=="advbench":
+            idx = response.find('\n\n')
+            if idx > -1:
+                response = response[idx+2:]
+
         chat = [
             {"role": "user", "content": ""},
             {"role": "assistant", "content": response},
