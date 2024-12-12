@@ -43,10 +43,10 @@ class TokenMaskingCTG(ModelWrapper):
                 if score > tau:
                     mask[i] = 0
                     edited = True
-            # print(scores)
 
             mask = torch.from_numpy(np.array(mask, dtype="bool"))
             logits_top = torch.masked_select(logits_top, mask)
+            original_logits_top_idx = logits_top_idx.detach().clone()
             logits_top_idx = torch.masked_select(logits_top_idx, mask)
 
             probs_top = torch.nn.functional.softmax(
@@ -58,10 +58,9 @@ class TokenMaskingCTG(ModelWrapper):
                     self._rng.choice(len(logits_top_idx), p=probs_top.detach().numpy())
                 ]
             else:
-                _, last_hidden_state = self._forward_pass_from_ids(input_ids)
-                if verbose:
-                    print("\n")
-                return sentence, last_hidden_state, edited
+                # No token moves the unsafeness below tau
+                # Solution: fetch the token that minimizes it
+                next_token = original_logits_top_idx[np.argmin(scores)]
 
             j += 1
             if (next_token.item() == self.tokenizer.eos_token_id) or (j > max_tokens):
