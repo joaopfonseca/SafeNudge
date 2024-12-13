@@ -27,6 +27,10 @@ from mlresearch.utils import check_pipelines
 # Experiments / model wrappers
 from ctg.new_ctg import ModelWrapper, CTG
 from ctg.perplexity import PerplexityCustom
+from ctg.evaluation_main import (
+    test_instruction_following_strict,
+    test_instruction_following_loose
+)
 
 DATA_PATH = join(dirname(__file__), "data")
 RESULTS_PATH = join(dirname(__file__), "results")
