@@ -50,18 +50,12 @@ def get_hidden_states(df, model, verbose=1):
 
 def get_generation_scores(prompt, response, model, clf):
 
-    init_input = [
-        {"role": "user", "content": prompt},
-        {"role": "assistant", "content": ""},
-    ]
-    input_tokens = model.tokenizer.batch_decode(model._get_ids(init_input))
     output_tokens = model.tokenizer.batch_decode(
         model.tokenizer(response)["input_ids"][1:]
     )
-    print(input_tokens)
     scores = [
         clf.predict_proba(
-            [model.get_hidden_state("".join(input_tokens) + "".join(output_tokens[:i]))]
+            [model.get_hidden_state(prompt, "".join(output_tokens[:i]))]
         )[0][1]
         for i in range(len(output_tokens))
     ]
