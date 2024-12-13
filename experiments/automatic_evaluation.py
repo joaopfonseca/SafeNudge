@@ -33,6 +33,43 @@ RESULTS_PATH = join(dirname(__file__), "results")
 ANALYSIS_PATH = join(dirname(__file__), "analysis")
 
 
+def ifeval_performance(df_results, df_ifeval):
+    df_results = df_results.copy().set_index("prompt")
+    df_ifeval = df_ifeval.copy().set_index("prompt")
+
+    df_results = df_results.merge(
+        df_ifeval, left_index=True, right_index=True, how="left"
+    ).reset_index()
+
+    ifeval_mask = df_results["dataset"] == "ifeval"
+    df_results.loc[ifeval_mask, "ifeval_strict"] = df_results.loc[ifeval_mask].apply(
+        (
+            lambda row: test_instruction_following_strict(
+                row.prompt,
+                row.response,
+                row.instruction_id_list,
+                row.kwargs
+            ).follow_all_instructions
+        ),
+        axis=1
+    )
+    df_results.loc[ifeval_mask, "ifeval_loose"] = df_results.loc[ifeval_mask].apply(
+        (
+            lambda row: test_instruction_following_loose(
+                row.prompt,
+                row.response,
+                row.instruction_id_list,
+                row.kwargs
+            ).follow_all_instructions
+        ),
+        axis=1
+    )
+    df_results[["ifeval_strict", "ifeval_loose"]] = (
+        df_results[["ifeval_strict", "ifeval_loose"]].astype(float)
+    )
+    return df_results
+
+
 def load_data():
     results_files = [
         f for f in listdir(RESULTS_PATH) if f.startswith("evaluation_responses")
@@ -167,5 +204,10 @@ if __name__ == "__main__":
         axis=1
     )
 
+    # Run IfEval performance evaluation
+    df_ifeval = pd.read_json(
+        "hf://datasets/google/IFEval/ifeval_input_data.jsonl", lines=True
+    )
+    df = ifeval_performance(df, df_ifeval)
     filename = join(RESULTS_PATH, "final_results_table.csv")
     df.to_csv(filename)

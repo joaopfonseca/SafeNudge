@@ -24,7 +24,9 @@ class TokenMaskingCTG(ModelWrapper):
         j = 0
         while True:
 
-            logits_top, logits_top_idx, last_hidden_state = self.get_top_logits_from_ids(input_ids)
+            logits_top, logits_top_idx, last_hidden_state = (
+                self.get_top_logits_from_ids(input_ids)
+            )
 
             mask = np.ones(len(logits_top_idx))
 
@@ -68,7 +70,6 @@ class TokenMaskingCTG(ModelWrapper):
                 if verbose:
                     print("\n")
                 return sentence, last_hidden_state, edited
-
 
             if self.tokenizer.name_or_path.find("mistral") > -1:
                 next_token_str = self.tokenizer.convert_ids_to_tokens(
