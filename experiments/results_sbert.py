@@ -175,6 +175,7 @@ if __name__ == "__main__":
     df["response"] = df.apply(remove_jailbreak_target, axis=1)
     prompts = df["prompt"].values
     df = get_response_embeddings(df, embedder)
+    df.to_pickle(join(RESULTS_PATH, "sbert_embeddings.pkl"))
 
     df["source"] = (
         ["harmful" for _ in range(1300)]

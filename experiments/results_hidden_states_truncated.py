@@ -174,7 +174,7 @@ if __name__ == "__main__":
 
     # Save results
     filename = join(
-        RESULTS_PATH, f"out_of_sample_results_{llm_name}_hidden_state_truncated.pkl"
+        RESULTS_PATH, f"out_of_sample_results_{llm_name}_hidden_states_truncated.pkl"
     )
     pd.DataFrame(results_oos).to_pickle(filename)
 

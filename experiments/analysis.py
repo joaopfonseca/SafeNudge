@@ -6,6 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import get_scorer
+from umap import UMAP
 from mlresearch.latex import (
     make_mean_sem_table, export_longtable, make_bold, format_table
 )
@@ -23,7 +24,7 @@ DATA_PATH = join(dirname(__file__), "data")
 RESULTS_PATH = join(dirname(__file__), "results")
 ANALYSIS_PATH = join(dirname(__file__), "analysis")
 
-set_matplotlib_style()
+set_matplotlib_style(font_size=30)
 
 LLAMA_HAZARD_CATEGORIES = {
     "safe": "Safe",
@@ -43,8 +44,12 @@ LLAMA_HAZARD_CATEGORIES = {
     "S14": "Code Interpreter Abuse",
 }
 MODEL_NAMES_MAPPER = {
-    "meta-llama-Meta-Llama-3.1-8B-Instruct": "Original",
+    "meta-llama-Meta-Llama-3.1-8B-Instruct": "Base",
     "Orenguteng-Llama-3.1-8B-Lexi-Uncensored-V2": "Uncensored"
+}
+DATASET_NAMES_MAPPER = {
+    "advbench": "Advbench",
+    "ifeval": "IFEval"
 }
 
 
@@ -115,6 +120,38 @@ def make_oos_line_chart(results, true_target=0, ax=None):
 
 
 if __name__ == "__main__":
+
+    # Hidden states scatter plot projection
+    df_emb = pd.read_pickle(join(RESULTS_PATH, "sbert_embeddings.pkl"))
+    source = (
+        ["Harmful" for _ in range(1300)]
+        + ["Benign" for _ in range(1300)]
+        + ["IFEval" for _ in range(1300)]
+    )
+    df_emb.drop(columns="response_type", inplace=True)
+    embedding = UMAP(
+        n_components=2, metric='euclidean', random_state=42, verbose=True, n_jobs=1
+    ).fit(df_emb)
+    df_emb = pd.DataFrame(embedding.embedding_, columns=["x", "y"])
+    df_emb["source"] = source
+    sns.scatterplot(data=df_emb, x="x", y="y", hue="source", s=50, linewidth=0.01)
+    plt.legend(
+        loc="lower center",
+        ncol=3,
+        bbox_to_anchor=(0, 1, 1, 0.5),
+    )
+    plt.xlabel("Component 1")
+    plt.ylabel("Component 2")
+    plt.ylim(top=18)
+    plt.xlim(left=2)
+    plt.savefig(
+        join(ANALYSIS_PATH, "umap_projections_train_data.pdf"),
+        format="pdf",
+        bbox_inches="tight",
+        transparent=True,
+    )
+    plt.close()
+
     for ctg_version in ["sbert", "hidden_states_truncated"]:
         # K-fold / Parameter tuning results
         all_perf = []
@@ -151,7 +188,7 @@ if __name__ == "__main__":
         results = pd.read_pickle(
             join(
                 RESULTS_PATH,
-                "out_of_sample_results_llama_hidden_state_truncated.pkl"
+                f"out_of_sample_results_llama_{ctg_version}.pkl"
             )
         )
         results = results[
@@ -169,7 +206,7 @@ if __name__ == "__main__":
             plt.legend(
                 labels=results.columns.drop("target"),
                 loc="lower center",
-                ncol=results.columns.size - 1,
+                ncol=2,
                 bbox_to_anchor=(0, 1, 1, 0.5),
             )
             plt.savefig(
@@ -259,6 +296,7 @@ if __name__ == "__main__":
         df_results.drop(columns="Unnamed: 0", inplace=True)
 
         df_results["model"] = df_results["model"].map(MODEL_NAMES_MAPPER)
+        df_results["dataset"] = df_results["dataset"].map(DATASET_NAMES_MAPPER)
 
         # Extract categories for llamaguard prompt evaluations
         df_results["category"] = df_results["llamaguard_prompt"].apply(
@@ -278,8 +316,20 @@ if __name__ == "__main__":
         # disagreement_prompts = set(safe_ctg_unc) & set(unsafe_orig_unc)
 
         df_results["method"] = df_results["method"].map(
-            {"tokenmasking": "TM", "original": "Vanilla", "ctg": "CTG"}
+            {"tokenmasking": "c-FUDGE", "original": "Vanilla", "ctg": "CTG"}
         )
+        # df_ifeval = df_results[
+        #     ["dataset", "model", "method", "ifeval_loose"]
+        # ].copy()
+        # df_results.drop(columns=["ifeval_strict", "ifeval_loose"], inplace=True)
+
+        # Export IFEval performance
+        # df_ifeval = df_ifeval[df_ifeval["dataset"] == "IFEval"].drop("dataset")
+        # df_ifeval = df_ifeval.groupby(["model", "method"]).mean().reset_index()
+        # df_ifeval = df_ifeval.pivot(
+        #     columns="model", index="method", values="ifeval_loose"
+        # )
+        # df_ifeval.to_excel(join(ANALYSIS_PATH, "results_ifeval_performance.xlsx"))
 
         # Export results overall
         df_overall = (
@@ -295,7 +345,7 @@ if __name__ == "__main__":
                     "ppl_score": "Perplexity",
                     "inference_p_token": "Inference time",
                     "model": "Model",
-                    "method": "Method"
+                    "method": "Method",
                 }
             )
             .pivot(
@@ -309,7 +359,7 @@ if __name__ == "__main__":
         df_overall = format_table(
             df_overall,
             indices=[
-                ["Unsafe", "Perplexity", "Inference time"], ["Original", "Uncensored"]
+                ["Unsafe", "Perplexity", "Inference time"], ["Base", "Uncensored"]
             ],
             columns=[],
             drop_missing=False
@@ -317,12 +367,13 @@ if __name__ == "__main__":
         df_overall = format_table(
             df_overall.T,
             indices=[
-                ["advbench", "ifeval"],
-                ["Vanilla", "TM", "CTG"]
+                list(DATASET_NAMES_MAPPER.values()),
+                ["Vanilla", "c-FUDGE", "CTG"]
             ],
             columns=[],
             drop_missing=False
         ).round(3)
+
         df_overall.to_excel(join(ANALYSIS_PATH, "results_overall.xlsx"))
 
         # Export results per category
@@ -354,7 +405,8 @@ if __name__ == "__main__":
             df_categories = format_table(
                 df_categories,
                 indices=[
-                    ["Unsafe", "Perplexity", "Inference time"], ["Vanilla", "TM", "CTG"]
+                    ["Unsafe", "Perplexity", "Inference time"],
+                    ["Vanilla", "c-FUDGE", "CTG"]
                 ],
                 columns=[],
                 drop_missing=False
@@ -363,6 +415,9 @@ if __name__ == "__main__":
             #     df_categories[col] = make_bold(
             #         df_categories[col], maximum=False, decimals=3
             #     )
+            counts = df_results.drop_duplicates("prompt").groupby(["category"]).size()
+            df_categories["Freq."] = counts
+            df_categories.drop("Safe", inplace=True)
             df_categories.to_excel(
                 join(ANALYSIS_PATH, f"results_per_category_{model}.xlsx")
             )
