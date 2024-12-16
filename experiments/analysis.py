@@ -318,18 +318,18 @@ if __name__ == "__main__":
         df_results["method"] = df_results["method"].map(
             {"tokenmasking": "c-FUDGE", "original": "Vanilla", "ctg": "CTG"}
         )
-        # df_ifeval = df_results[
-        #     ["dataset", "model", "method", "ifeval_loose"]
-        # ].copy()
-        # df_results.drop(columns=["ifeval_strict", "ifeval_loose"], inplace=True)
+        df_ifeval = df_results[
+            ["dataset", "model", "method", "ifeval_loose"]
+        ].copy()
+        df_results.drop(columns=["ifeval_strict", "ifeval_loose"], inplace=True)
 
         # Export IFEval performance
-        # df_ifeval = df_ifeval[df_ifeval["dataset"] == "IFEval"].drop("dataset")
-        # df_ifeval = df_ifeval.groupby(["model", "method"]).mean().reset_index()
-        # df_ifeval = df_ifeval.pivot(
-        #     columns="model", index="method", values="ifeval_loose"
-        # )
-        # df_ifeval.to_excel(join(ANALYSIS_PATH, "results_ifeval_performance.xlsx"))
+        df_ifeval = df_ifeval[df_ifeval["dataset"] == "IFEval"].drop(columns="dataset")
+        df_ifeval = df_ifeval.groupby(["model", "method"]).mean().reset_index()
+        df_ifeval = df_ifeval.pivot(
+            columns="model", index="method", values="ifeval_loose"
+        )
+        df_ifeval.to_excel(join(ANALYSIS_PATH, "results_ifeval_performance.xlsx"))
 
         # Export results overall
         df_overall = (
