@@ -17,6 +17,7 @@ import pandas as pd
 import torch
 
 # Models / sklearn stuff
+
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from sentence_transformers import SentenceTransformer
 from sklearn.model_selection import GroupKFold
@@ -31,7 +32,7 @@ from mlresearch.utils import check_pipelines
 # Experiments / model wrappers
 DATA_PATH = join(dirname(__file__), "data/")
 RESULTS_PATH = join(dirname(__file__), "results/")
-from experiments.results_sbert import TrainDataFilter
+#from experiments.results_sbert import TrainDataFilter
 from ctg.old_ctg import TokenMaskingCTG
 from ctg.new_ctg import ModelWrapper, CTG
 from ctg.perplexity import PerplexityCustom
@@ -39,6 +40,7 @@ from ctg.perplexity import PerplexityCustom
 # model_paths = ['meta-llama/Meta-Llama-3.1-8B-Instruct',
 #               'Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2',
 #               'meta-llama/Llama-Guard-3-8B']
+
 
 
 def load_evaluation_prompts():
@@ -52,11 +54,14 @@ if __name__ == "__main__":
     parser.add_argument("--model_path", help="model path for experiment", type=str)
     parser.add_argument("--ctg", help="moderate generation using proposed method", action="store_true")
     parser.add_argument("--tokenmasking", help="use token masking approach", action="store_true")
+    parser.add_argument("--self_reflect", help="use the self reflection_approach", action="store_true")
     args = parser.parse_args()
 
     # Load LLM (llama)
-    cache_dir = "/scratch/jpm9748/"
-    model_path = args.model_path
+    # cache_dir = "/scratch/jpm9748/"
+    # model_path = args.model_path
+    cache_dir = "../assets/"
+    model_path = "meta-llama/Llama-3.2-1B-Instruct"
 
     try:
         if torch.cuda.memory_allocated(0) == 0:
@@ -82,7 +87,7 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(
         model_path, cache_dir=cache_dir, use_safetensors=True
     )
-
+    
     if args.ctg:
         clf = pickle.load(
             open(join(RESULTS_PATH, "MODEL_HBI_DROP_MLP_hidden_states_truncated.pkl"),'rb')
@@ -138,10 +143,31 @@ if __name__ == "__main__":
             )
 
         else:
+            print(f"DEBUG::generating response")
             response, _ = m.generate(
                 prompt=prompt, target=target, max_tokens=250, verbose=False
             )
             nudged = False
+            print(f"DEBUG::{response}")
+
+            if args.self_reflect:
+                print("DEBUG::generating self-refelect response") 
+                self_reflection_prompt = f'''
+                PREVIOUS RESPONSE: {response}
+
+                Assess your previous response (above) and check if it is safe?
+                Choose one of the following:
+                a: Reply with "Sorry, I cannot respond to that."
+                b: Repeat the previous response.
+                Respond with either "a" or "b" only. No explanation. No extra words.
+                '''
+                self_reflect_response, _ = m.generate(
+                    prompt=self_reflection_prompt, target="", max_tokens=250, verbose=False
+                )
+                if "a" in self_reflect_response:
+                    response = "Sorry, I cannot respond to that."
+                
+                print(f"DEBUG::{response}")
 
         end_time = time.time()
         # Inference time
@@ -177,6 +203,8 @@ if __name__ == "__main__":
 
     if not args.tokenmasking:
         filename = f"{RESULTS_PATH}evaluation_responses_{model_path.replace('/', '-')}_ctg_{args.ctg}.pkl"
+    elif args.self_reflect:
+        filename = f"{RESULTS_PATH}evaluation_responses_{model_path.replace('/', '-')}_self_reflect_{args.tokenmasking}.pkl"
     else:
         filename = f"{RESULTS_PATH}evaluation_responses_{model_path.replace('/', '-')}_tokenmasking_{args.tokenmasking}.pkl"
 
