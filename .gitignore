@@ -95,3 +95,6 @@ target/
 
 # Mypy cache
 .mypy_cache/
+
+#assets folder for Andrew's local machine
+assets/
