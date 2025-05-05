@@ -138,7 +138,7 @@ if __name__ == "__main__":
     plt.legend(
         loc="lower center",
         ncol=3,
-        bbox_to_anchor=(0, 1, 1, 0.5),
+        bbox_to_anchor=(0, 0.95, 1, 0.5),
     )
     plt.xlabel("Component 1")
     plt.ylabel("Component 2")
@@ -151,6 +151,9 @@ if __name__ == "__main__":
         transparent=True,
     )
     plt.close()
+
+    # Redefine RCParams for lineplots
+    set_matplotlib_style(font_size=30, **{"lines.linewidth": 5})
 
     for ctg_version in ["sbert", "hidden_states_truncated"]:
         # K-fold / Parameter tuning results
@@ -202,12 +205,13 @@ if __name__ == "__main__":
             target_type = "dangerous" if true_target else "benign"
             make_oos_line_chart(results, true_target=true_target)  # , ax=axes[i]
 
-            plt.ylabel(r"Rejection (\%)")
+            plt.ylabel(r"Flagged as unsafe (\%)")
+            plt.xlabel(r"$\tau$")
             plt.legend(
                 labels=results.columns.drop("target"),
                 loc="lower center",
                 ncol=2,
-                bbox_to_anchor=(0, 1, 1, 0.5),
+                bbox_to_anchor=(0, 0.95, 1, 0),
             )
             plt.savefig(
                 join(ANALYSIS_PATH, f"linechart_{target_type}_llama_{ctg_version}.pdf"),
@@ -273,7 +277,7 @@ if __name__ == "__main__":
         plt.legend(
             loc="lower center",
             ncol=results.columns.size - 1,
-            bbox_to_anchor=(0, 1, 1, 0.5),
+            bbox_to_anchor=(0, 0.95, 1, 0),
         )
         plt.savefig(
             join(
