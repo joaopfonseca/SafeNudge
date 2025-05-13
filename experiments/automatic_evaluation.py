@@ -95,6 +95,8 @@ def load_data():
             df_result["method"] = "ctg" if result["ctg"] else "original"
         if "tokenmasking" in result.keys():
             df_result["method"] = "tokenmasking" if result["tokenmasking"] else np.nan
+        if "self_reflect" in result.keys():
+            df_result["method"] = "self_reflect" if result["self_reflect"] else np.nan
 
         df_results.append(df_result)
 
@@ -104,7 +106,7 @@ def load_data():
 
 
 if __name__ == "__main__":
-    cache_dir = "/scratch/jpm9748/"
+    cache_dir = "/scratch/alb9742/"
     model_path = "meta-llama/Llama-Guard-3-8B"
     device = 'cuda'
 
@@ -213,5 +215,5 @@ if __name__ == "__main__":
         "hf://datasets/google/IFEval/ifeval_input_data.jsonl", lines=True
     )
     df = ifeval_performance(df, df_ifeval)
-    filename = join(RESULTS_PATH, "final_results_table.csv")
+    filename = join(RESULTS_PATH, "final_results_table_apr29.csv")
     df.to_csv(filename)
