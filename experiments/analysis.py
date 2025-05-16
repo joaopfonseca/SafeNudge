@@ -293,7 +293,7 @@ if __name__ == "__main__":
         ################################################################################
         # Evaluation responses analysis
         ################################################################################
-        df_results = pd.read_csv(join(RESULTS_PATH, "final_results_table.csv"))
+        df_results = pd.read_csv(join(RESULTS_PATH, "final_results_table_may13.csv"))
         df_results["inference_p_token"] = (
             df_results["inference_time"] / df_results["num_of_tokens"]
         )
@@ -320,7 +320,13 @@ if __name__ == "__main__":
         # disagreement_prompts = set(safe_ctg_unc) & set(unsafe_orig_unc)
 
         df_results["method"] = df_results["method"].map(
-            {"tokenmasking": "c-FUDGE", "original": "Vanilla", "ctg": "CTG"}
+            {
+                "tokenmasking": "c-FUDGE",
+                "original": "Vanilla",
+                "ctg": "CTG",
+                "self_reflect": "Self-reflect",
+                "wildguardctg": "WildguardCTG"
+            }
         )
         df_ifeval = df_results[
             ["dataset", "model", "method", "ifeval_loose"]
@@ -340,12 +346,13 @@ if __name__ == "__main__":
             df_results
             .groupby(["model", "method", "dataset"])
             .mean(numeric_only=True)[
-                ["unsafe", "ppl_score", "inference_p_token"]
+                ["wildguard_unsafe", "llamaguard_unsafe", "ppl_score", "inference_p_token"]
             ]
             .reset_index()
             .rename(
                 columns={
-                    "unsafe": "Unsafe",
+                    "wildguard_unsafe": "WildGuard",
+                    "llamaguard_unsafe": "LlamaGuard",
                     "ppl_score": "Perplexity",
                     "inference_p_token": "Inference time",
                     "model": "Model",
@@ -355,7 +362,7 @@ if __name__ == "__main__":
             .pivot(
                 columns=["Model"],
                 index=["dataset", "Method"],
-                values=["Unsafe", "Perplexity", "Inference time"]
+                values=["WildGuard", "LlamaGuard", "Perplexity", "Inference time"]
             )
             .T
         )
@@ -363,7 +370,7 @@ if __name__ == "__main__":
         df_overall = format_table(
             df_overall,
             indices=[
-                ["Unsafe", "Perplexity", "Inference time"], ["Base", "Uncensored"]
+                ["WildGuard", "LlamaGuard", "Perplexity", "Inference time"], ["Base", "Uncensored"]
             ],
             columns=[],
             drop_missing=False
@@ -372,7 +379,7 @@ if __name__ == "__main__":
             df_overall.T,
             indices=[
                 list(DATASET_NAMES_MAPPER.values()),
-                ["Vanilla", "c-FUDGE", "CTG"]
+                ["Vanilla", "c-FUDGE", "Self-reflect", "CTG"]
             ],
             columns=[],
             drop_missing=False
@@ -386,12 +393,13 @@ if __name__ == "__main__":
                 df_results[df_results["model"] == model]
                 .groupby(["category", "method"])
                 .mean(numeric_only=True)[
-                    ["unsafe", "ppl_score", "inference_p_token"]
+                    ["wildguard_unsafe", "llamaguard_unsafe", "ppl_score", "inference_p_token"]
                 ]
                 .reset_index()
                 .rename(
                     columns={
-                        "unsafe": "Unsafe",
+                        "wildguard_unsafe": "WildGuard",
+                        "llamaguard_unsafe": "LlamaGuard",
                         "ppl_score": "Perplexity",
                         "inference_p_token": "Inference time",
                         "category": "Category",
@@ -401,7 +409,7 @@ if __name__ == "__main__":
                 .pivot(
                     columns=["Method"],
                     index=["Category"],
-                    values=["Unsafe", "Perplexity", "Inference time"]
+                    values=["WildGuard", "LlamaGuard", "Perplexity", "Inference time"]
                 )
                 .T
             )
@@ -409,8 +417,8 @@ if __name__ == "__main__":
             df_categories = format_table(
                 df_categories,
                 indices=[
-                    ["Unsafe", "Perplexity", "Inference time"],
-                    ["Vanilla", "c-FUDGE", "CTG"]
+                    ["WildGuard", "LlamaGuard", "Perplexity", "Inference time"],
+                    ["Vanilla", "c-FUDGE", "Self-reflect", "CTG"]
                 ],
                 columns=[],
                 drop_missing=False

@@ -156,7 +156,7 @@ if __name__ == "__main__":
             )
             nudged = False
 
-            if args.self_reflect:                
+            if args.self_reflect:
                 self_reflect_response, _ = m.generate(
                     prompt=self_reflection_prompt.format(response = response), target="", max_tokens=250, verbose=False
                 )
@@ -197,7 +197,7 @@ if __name__ == "__main__":
     if args.ctg:
         filename = f"{RESULTS_PATH}evaluation_responses_{model_path.replace('/', '-')}_ctg_{args.ctg}.pkl"
     elif args.self_reflect:
-        filename = f"{RESULTS_PATH}evaluation_responses_{model_path.replace('/', '-')}_self_reflect_{args.self_reflect}.pkl"
+        filename = f"{RESULTS_PATH}evaluation_responses_{model_path.replace('/', '-')}_selfreflect_{args.self_reflect}.pkl"
     elif args.tokenmasking:
         filename = f"{RESULTS_PATH}evaluation_responses_{model_path.replace('/', '-')}_tokenmasking_{args.tokenmasking}.pkl"
 
