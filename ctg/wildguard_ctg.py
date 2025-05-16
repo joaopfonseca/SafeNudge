@@ -24,6 +24,8 @@ class WildGuard:
         self,
         model_path="allenai/wildguard",
         cache_dir=Path.home() / ".cache" / "huggingface" / "hub",
+        model=None,
+        tokenizer=None,
         device="auto",
         use_safetensors=True
     ):
@@ -31,18 +33,24 @@ class WildGuard:
         self.cache_dir = cache_dir
         self.device = device
         self.use_safetensors = use_safetensors
-        self._model = AutoModelForCausalLM.from_pretrained(
-            model_path,
-            use_safetensors=use_safetensors,
-            device_map=device,
-            **{"cache_dir": cache_dir} if cache_dir else {}
-        )
+        if not model:
+            self._model = AutoModelForCausalLM.from_pretrained(
+                model_path,
+                use_safetensors=use_safetensors,
+                device_map=device,
+                **{"cache_dir": cache_dir} if cache_dir else {}
+            )
+        else:
+            self._model = model
 
-        self._tokenizer = AutoTokenizer.from_pretrained(
-            model_path,
-            use_safetensors=use_safetensors,
-            **{"cache_dir": cache_dir} if cache_dir else {}
-        )
+        if not tokenizer:
+            self._tokenizer = AutoTokenizer.from_pretrained(
+                model_path,
+                use_safetensors=use_safetensors,
+                **{"cache_dir": cache_dir} if cache_dir else {}
+            )
+        else:
+            self._tokenizer = tokenizer
 
     def _individual(self, prompt, response, response_only=True, output_scores=False):
         """
@@ -66,6 +74,10 @@ class WildGuard:
                 add_special_tokens=False
             )
 
+            if self._model.device.type != "cpu":
+                #input_ids = input_ids["input_ids"].cuda()
+                input_ids = {k:v.cuda() for k, v in input_ids.items()}
+            
             output = self._model.generate(
                 **input_ids,
                 max_new_tokens=32,
@@ -73,12 +85,12 @@ class WildGuard:
                 return_dict_in_generate=output_scores,
             )
 
-            if output_scores:
-                return output
-
             if self._model.device.type != "cpu":
-                output = output.cpu()
-                input_ids = input_ids.cpu()
+                scores = output["scores"][-2].cpu()
+                del output, input_ids
+
+            if output_scores:
+                return scores
 
             res = self._tokenizer.decode(
                 output[0][len(input_ids['input_ids'][0]):],
@@ -104,7 +116,7 @@ class WildGuard:
     def _individual_proba(self, prompt, response):
         logits = self._individual(
             prompt=prompt, response=response, output_scores=True
-        )["scores"][-2]
+        )
         yes_idx = self._tokenizer.encode("yes")[-1]
         no_idx = self._tokenizer.encode("no")[-1]
         proba = torch.nn.functional.softmax(
