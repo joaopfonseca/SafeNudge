@@ -32,14 +32,11 @@ from mlresearch.utils import check_pipelines
 # Experiments / model wrappers
 DATA_PATH = join(dirname(__file__), "data/")
 RESULTS_PATH = join(dirname(__file__), "results/")
-#from experiments.results_sbert import TrainDataFilter
+from experiments.results_sbert import TrainDataFilter
 from ctg.old_ctg import TokenMaskingCTG
 from ctg.new_ctg import ModelWrapper, CTG
 from ctg.perplexity import PerplexityCustom
-
-# model_paths = ['meta-llama/Meta-Llama-3.1-8B-Instruct',
-#               'Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2',
-#               'meta-llama/Llama-Guard-3-8B']
+from ctg.wildguard_ctg import WildGuard, WildGuardCTG
 
 self_reflection_prompt = '''
 PREVIOUS RESPONSE: {response}
@@ -63,13 +60,16 @@ if __name__ == "__main__":
     parser.add_argument("--ctg", help="moderate generation using proposed method", action="store_true")
     parser.add_argument("--tokenmasking", help="use token masking approach", action="store_true")
     parser.add_argument("--self_reflect", help="use the self reflection_approach", action="store_true")
+    parser.add_argument("--wildguardctg", help="use wildguard with safenudge", action="store_true")
     args = parser.parse_args()
 
     # Load LLM (llama)
     cache_dir = "/scratch/alb9742/"
     model_path = args.model_path
-    #cache_dir = "../assets/"
-    #model_path = "meta-llama/Llama-3.2-1B-Instruct"
+    # model_paths = ['meta-llama/Meta-Llama-3.1-8B-Instruct',
+    #               'Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2',
+    #               'meta-llama/Llama-Guard-3-8B']
+
 
     try:
         if torch.cuda.memory_allocated(0) == 0:
@@ -109,6 +109,26 @@ if __name__ == "__main__":
             model_name_or_path="all-MiniLM-L6-v2", similarity_fn_name="cosine"
         )
         m = TokenMaskingCTG(model, tokenizer, mode="topk", k=100, temperature=1.0, cuda=CUDA, random_state=42)
+    elif args.wildguardctg:
+        m = WildGuardCTG(
+            model=model,
+            tokenizer=tokenizer,
+            mode="topk",
+            k=50,
+            temperature=1.0,
+            random_state=42,
+            cuda=CUDA
+        )
+
+        w_model_id = "allenai/wildguard"
+        w_tokenizer = AutoTokenizer.from_pretrained(w_model_id, cache_dir=cache_dir)
+        w_model = AutoModelForCausalLM.from_pretrained(w_model_id, cache_dir=cache_dir)
+        print("DEBUG::GPU memory:: ", torch.cuda.memory_allocated(0))
+        w_model.cuda()
+        print("DEBUG::Model succesfully moved to Cuda.")
+        print("DEBUG::GPU memory:: ", torch.cuda.memory_allocated(0))
+        
+        clf = WildGuard(model=w_model, tokenizer=w_tokenizer)
     else:
         m = ModelWrapper(
             model, tokenizer, mode="topk", k=100, temperature=1.0, cuda=CUDA, random_state=42
@@ -140,23 +160,21 @@ if __name__ == "__main__":
 
         start_time = time.time()
         # Response
-        if args.ctg:
-            # Implement CTG code
+        if args.ctg or args.wildguardctg:
             response, _, nudged = m.generate_moderated(
                 prompt=prompt, clf=clf, target=target, max_tokens=250, verbose=False
             )
         elif args.tokenmasking:
             response, _, nudged = m.generate_moderated(
                 prompt=prompt, embedder=embedder, clf=clf, target=target, max_tokens=250, verbose=False
-            )
-
+            )          
         else:
             response, _ = m.generate(
                 prompt=prompt, target=target, max_tokens=250, verbose=False
             )
             nudged = False
 
-            if args.self_reflect:
+            if args.self_reflect:                
                 self_reflect_response, _ = m.generate(
                     prompt=self_reflection_prompt.format(response = response), target="", max_tokens=250, verbose=False
                 )
@@ -200,5 +218,9 @@ if __name__ == "__main__":
         filename = f"{RESULTS_PATH}evaluation_responses_{model_path.replace('/', '-')}_selfreflect_{args.self_reflect}.pkl"
     elif args.tokenmasking:
         filename = f"{RESULTS_PATH}evaluation_responses_{model_path.replace('/', '-')}_tokenmasking_{args.tokenmasking}.pkl"
+    elif args.wildguardctg:
+        filename = f"{RESULTS_PATH}evaluation_responses_{model_path.replace('/', '-')}_wildguardctg_{args.wildguardctg}.pkl"
+    else:
+        filename = f"{RESULTS_PATH}evaluation_responses_{model_path.replace('/', '-')}_vanilla.pkl"
 
     results_df.to_pickle(filename)
