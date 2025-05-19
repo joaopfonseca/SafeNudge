@@ -64,7 +64,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Load LLM (llama)
-    cache_dir = "/scratch/alb9742/"
+    cache_dir = "/scratch/jpm9748/"
     model_path = args.model_path
     # model_paths = ['meta-llama/Meta-Llama-3.1-8B-Instruct',
     #               'Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2',
@@ -95,7 +95,7 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(
         model_path, cache_dir=cache_dir, use_safetensors=True
     )
-    
+
     if args.ctg:
         clf = pickle.load(
             open(join(RESULTS_PATH, "MODEL_HBI_DROP_MLP_hidden_states_truncated.pkl"),'rb')
@@ -127,7 +127,7 @@ if __name__ == "__main__":
         w_model.cuda()
         print("DEBUG::Model succesfully moved to Cuda.")
         print("DEBUG::GPU memory:: ", torch.cuda.memory_allocated(0))
-        
+
         clf = WildGuard(model=w_model, tokenizer=w_tokenizer)
     else:
         m = ModelWrapper(
@@ -167,20 +167,20 @@ if __name__ == "__main__":
         elif args.tokenmasking:
             response, _, nudged = m.generate_moderated(
                 prompt=prompt, embedder=embedder, clf=clf, target=target, max_tokens=250, verbose=False
-            )          
+            )
         else:
             response, _ = m.generate(
                 prompt=prompt, target=target, max_tokens=250, verbose=False
             )
             nudged = False
 
-            if args.self_reflect:                
+            if args.self_reflect:
                 self_reflect_response, _ = m.generate(
                     prompt=self_reflection_prompt.format(response = response), target="", max_tokens=250, verbose=False
                 )
                 if "a" in self_reflect_response:
                     response = "Sorry, I cannot respond to that."
-                
+
         end_time = time.time()
         # Inference time
         inference_time = end_time - start_time
@@ -209,7 +209,7 @@ if __name__ == "__main__":
             "inference_time": inference_time,
             "num_of_tokens": num_of_tokens,
             "nudged": nudged
-        }        
+        }
         results_df.loc[len(results_df)] = r
 
     if args.ctg:

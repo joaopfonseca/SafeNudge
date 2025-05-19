@@ -59,7 +59,7 @@ if __name__ == "__main__":
     try:
         if torch.cuda.memory_allocated(0) == 0:
             model = AutoModelForCausalLM.from_pretrained(
-                model_path, cache_dir=cache_dir, use_safetensors=True
+                model_path, cache_dir=cache_dir
             )
 
             print("DEBUG::GPU memory:: ", torch.cuda.memory_allocated(0))
@@ -72,13 +72,13 @@ if __name__ == "__main__":
             print("DEBUG::GPU memory:: ", torch.cuda.memory_allocated(0))
     except:  # noqa
         model = AutoModelForCausalLM.from_pretrained(
-            model_path, cache_dir=cache_dir, use_safetensors=True
+            model_path, cache_dir=cache_dir
         )
 
         CUDA = False
 
     tokenizer = AutoTokenizer.from_pretrained(
-        model_path, cache_dir=cache_dir, use_safetensors=True
+        model_path, cache_dir=cache_dir
     )
 
     # Load the data
@@ -146,7 +146,7 @@ if __name__ == "__main__":
 
     df['tp_wildguard'] = df.apply(
         lambda row: (
-            1 
+            1
             if ((row['wildguard_unsafe'] == 1) and (row['dataset'] == 'advbench'))
             else 0
         ),

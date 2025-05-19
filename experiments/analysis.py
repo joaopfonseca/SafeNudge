@@ -367,24 +367,30 @@ if __name__ == "__main__":
             .T
         )
         df_overall.index.names = ["Metric", "Llama"]
+
+        # EDIT 2: Keep only Advbench and add IFEval performance on the rows
+        df_overall = df_overall["Advbench"]
+        df_ifeval_temp = df_ifeval.T.reset_index().rename(columns={"model": "Llama"})
+        df_ifeval_temp["Metric"] = "IFEval Perf."
+        df_ifeval_temp.set_index(["Metric", "Llama"], inplace=True)
+        df_overall = pd.concat([df_overall, df_ifeval_temp])
+        df_overall = df_overall.reset_index().set_index(["Llama", "Metric"]).sort_index()
         df_overall = format_table(
             df_overall,
             indices=[
-                ["WildGuard", "LlamaGuard", "Perplexity", "Inference time"], ["Base", "Uncensored"]
+                {"Base": "Base", "Uncensored": "Uncensored"},
+                {
+                    "WildGuard": "WildGuard Unsafeness",
+                    "LlamaGuard": "LlamaGuard Unsafeness",
+                    "IFEval Perf.": "IFEval Performance",
+                    "Perplexity": "Perplexity",
+                    "Inference time": "Inference time"
+                }
             ],
             columns=[],
             drop_missing=False
         )
-        df_overall = format_table(
-            df_overall.T,
-            indices=[
-                list(DATASET_NAMES_MAPPER.values()),
-                ["Vanilla", "c-FUDGE", "Self-reflect", "CTG"]
-            ],
-            columns=[],
-            drop_missing=False
-        ).round(3)
-
+        df_overall = df_overall[["Vanilla", "c-FUDGE", "Self-reflect", "CTG"]].round(3)
         df_overall.to_excel(join(ANALYSIS_PATH, "results_overall.xlsx"))
 
         # Export results per category
@@ -430,6 +436,7 @@ if __name__ == "__main__":
             counts = df_results.drop_duplicates("prompt").groupby(["category"]).size()
             df_categories["Freq."] = counts
             df_categories.drop("Safe", inplace=True)
+            df_categories = df_categories[df_categories["Freq."] > 10].T
             df_categories.to_excel(
                 join(ANALYSIS_PATH, f"results_per_category_{model}.xlsx")
             )
