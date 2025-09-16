@@ -1,4 +1,4 @@
-git+https://github.com/joaopfonseca/ml-research[optional, tests]
+ml-research
 sentence-transformers>=3.3.1
 transformers>=4.46.3
 torch>=2.5.1
