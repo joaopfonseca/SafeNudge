@@ -29,8 +29,8 @@ with open(ver_file) as f:
     exec(f.read())
 
 MAINTAINER = "J. Fonseca"
-MAINTAINER_EMAIL = "jpfonseca@novaims.unl.pt"
-URL = "https://github.com/joaopfonseca/ml-research"
+MAINTAINER_EMAIL = "jpm9748@nyu.edu"
+URL = "https://github.com/joaopfonseca/safenudge"
 VERSION = __version__
 SHORT_DESCRIPTION = (
     "A Python library with the implementation for the algorithms used in 'Safeguarding "
@@ -60,7 +60,7 @@ EXTRAS_REQUIRE = {
 }
 
 setup(
-    name="ctg",
+    name="safenudge",
     maintainer=MAINTAINER,
     maintainer_email=MAINTAINER_EMAIL,
     url=URL,
