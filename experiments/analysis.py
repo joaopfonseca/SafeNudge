@@ -8,7 +8,10 @@ import seaborn as sns
 from sklearn.metrics import get_scorer
 from umap import UMAP
 from mlresearch.latex import (
-    make_mean_sem_table, export_longtable, make_bold, format_table
+    make_mean_sem_table,
+    export_longtable,
+    make_bold,
+    format_table,
 )
 from mlresearch.utils import set_matplotlib_style
 
@@ -45,12 +48,9 @@ LLAMA_HAZARD_CATEGORIES = {
 }
 MODEL_NAMES_MAPPER = {
     "meta-llama-Meta-Llama-3.1-8B-Instruct": "Base",
-    "Orenguteng-Llama-3.1-8B-Lexi-Uncensored-V2": "Uncensored"
+    "Orenguteng-Llama-3.1-8B-Lexi-Uncensored-V2": "Uncensored",
 }
-DATASET_NAMES_MAPPER = {
-    "advbench": "Advbench",
-    "ifeval": "IFEval"
-}
+DATASET_NAMES_MAPPER = {"advbench": "Advbench", "ifeval": "IFEval"}
 
 
 def _format_dataset(row):
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     )
     df_emb.drop(columns="response_type", inplace=True)
     embedding = UMAP(
-        n_components=2, metric='euclidean', random_state=42, verbose=True, n_jobs=1
+        n_components=2, metric="euclidean", random_state=42, verbose=True, n_jobs=1
     ).fit(df_emb)
     df_emb = pd.DataFrame(embedding.embedding_, columns=["x", "y"])
     df_emb["source"] = source
@@ -162,7 +162,7 @@ if __name__ == "__main__":
             results = pd.read_pickle(
                 join(
                     RESULTS_PATH,
-                    f"param_tuning_results_dataset_{dataset}_{ctg_version}.pkl"
+                    f"param_tuning_results_dataset_{dataset}_{ctg_version}.pkl",
                 )
             )
             mean_sem_results = get_mean_sem_results(results)
@@ -189,10 +189,7 @@ if __name__ == "__main__":
         # i = 0
         metrics = {}
         results = pd.read_pickle(
-            join(
-                RESULTS_PATH,
-                f"out_of_sample_results_llama_{ctg_version}.pkl"
-            )
+            join(RESULTS_PATH, f"out_of_sample_results_llama_{ctg_version}.pkl")
         )
         results = results[
             results.columns[results.columns.str.startswith("HBI")].tolist() + ["target"]
@@ -282,7 +279,7 @@ if __name__ == "__main__":
         plt.savefig(
             join(
                 ANALYSIS_PATH,
-                f"linechart_scores_over_tokens_oos_100_each_type_{ctg_version}.pdf"
+                f"linechart_scores_over_tokens_oos_100_each_type_{ctg_version}.pdf",
             ),
             format="pdf",
             bbox_inches="tight",
@@ -303,9 +300,11 @@ if __name__ == "__main__":
         df_results["dataset"] = df_results["dataset"].map(DATASET_NAMES_MAPPER)
 
         # Extract categories for llamaguard prompt evaluations
-        df_results["category"] = df_results["llamaguard_prompt"].apply(
-            lambda x: x.split("\n")[-1]
-        ).map(LLAMA_HAZARD_CATEGORIES)
+        df_results["category"] = (
+            df_results["llamaguard_prompt"]
+            .apply(lambda x: x.split("\n")[-1])
+            .map(LLAMA_HAZARD_CATEGORIES)
+        )
 
         # safe_ctg_unc = df_results[
         #     (df_results["model"] == "Orenguteng-Llama-3.1-8B-Lexi-Uncensored-V2")
@@ -325,12 +324,10 @@ if __name__ == "__main__":
                 "original": "Vanilla",
                 "ctg": "CTG",
                 "self_reflect": "Self-reflect",
-                "wildguardctg": "WildguardCTG"
+                "wildguardctg": "WildguardCTG",
             }
         )
-        df_ifeval = df_results[
-            ["dataset", "model", "method", "ifeval_loose"]
-        ].copy()
+        df_ifeval = df_results[["dataset", "model", "method", "ifeval_loose"]].copy()
         df_results.drop(columns=["ifeval_strict", "ifeval_loose"], inplace=True)
 
         # Export IFEval performance
@@ -343,10 +340,14 @@ if __name__ == "__main__":
 
         # Export results overall
         df_overall = (
-            df_results
-            .groupby(["model", "method", "dataset"])
+            df_results.groupby(["model", "method", "dataset"])
             .mean(numeric_only=True)[
-                ["wildguard_unsafe", "llamaguard_unsafe", "ppl_score", "inference_p_token"]
+                [
+                    "wildguard_unsafe",
+                    "llamaguard_unsafe",
+                    "ppl_score",
+                    "inference_p_token",
+                ]
             ]
             .reset_index()
             .rename(
@@ -362,7 +363,7 @@ if __name__ == "__main__":
             .pivot(
                 columns=["Model"],
                 index=["dataset", "Method"],
-                values=["WildGuard", "LlamaGuard", "Perplexity", "Inference time"]
+                values=["WildGuard", "LlamaGuard", "Perplexity", "Inference time"],
             )
             .T
         )
@@ -372,11 +373,15 @@ if __name__ == "__main__":
         for dataset_name in ["Advbench", "IFEval"]:
             df_overall = df_overall_all[dataset_name].copy()
 
-            df_ifeval_temp = df_ifeval.T.reset_index().rename(columns={"model": "Llama"})
+            df_ifeval_temp = df_ifeval.T.reset_index().rename(
+                columns={"model": "Llama"}
+            )
             df_ifeval_temp["Metric"] = "IFEval Perf."
             df_ifeval_temp.set_index(["Metric", "Llama"], inplace=True)
             df_overall = pd.concat([df_overall, df_ifeval_temp])
-            df_overall = df_overall.reset_index().set_index(["Llama", "Metric"]).sort_index()
+            df_overall = (
+                df_overall.reset_index().set_index(["Llama", "Metric"]).sort_index()
+            )
             df_overall = format_table(
                 df_overall,
                 indices=[
@@ -386,14 +391,18 @@ if __name__ == "__main__":
                         "LlamaGuard": "LlamaGuard Unsafeness",
                         "IFEval Perf.": "IFEval Performance",
                         "Perplexity": "Perplexity",
-                        "Inference time": "Inference time"
-                    }
+                        "Inference time": "Inference time",
+                    },
                 ],
                 columns=[],
-                drop_missing=False
+                drop_missing=False,
             )
-            df_overall = df_overall[["Vanilla", "c-FUDGE", "Self-reflect", "CTG", "WildguardCTG"]].round(3)
-            df_overall.to_excel(join(ANALYSIS_PATH, f"results_overall_{dataset_name}.xlsx"))
+            df_overall = df_overall[
+                ["Vanilla", "c-FUDGE", "Self-reflect", "CTG", "WildguardCTG"]
+            ].round(3)
+            df_overall.to_excel(
+                join(ANALYSIS_PATH, f"results_overall_{dataset_name}.xlsx")
+            )
 
         # Export results per category
         for model in df_results.model.unique():
@@ -401,7 +410,12 @@ if __name__ == "__main__":
                 df_results[df_results["model"] == model]
                 .groupby(["category", "method"])
                 .mean(numeric_only=True)[
-                    ["wildguard_unsafe", "llamaguard_unsafe", "ppl_score", "inference_p_token"]
+                    [
+                        "wildguard_unsafe",
+                        "llamaguard_unsafe",
+                        "ppl_score",
+                        "inference_p_token",
+                    ]
                 ]
                 .reset_index()
                 .rename(
@@ -411,13 +425,13 @@ if __name__ == "__main__":
                         "ppl_score": "Perplexity",
                         "inference_p_token": "Inference time",
                         "category": "Category",
-                        "method": "Method"
+                        "method": "Method",
                     }
                 )
                 .pivot(
                     columns=["Method"],
                     index=["Category"],
-                    values=["WildGuard", "LlamaGuard", "Perplexity", "Inference time"]
+                    values=["WildGuard", "LlamaGuard", "Perplexity", "Inference time"],
                 )
                 .T
             )
@@ -426,10 +440,10 @@ if __name__ == "__main__":
                 df_categories,
                 indices=[
                     ["WildGuard", "LlamaGuard", "Perplexity", "Inference time"],
-                    ["Vanilla", "c-FUDGE", "Self-reflect", "CTG"]
+                    ["Vanilla", "c-FUDGE", "Self-reflect", "CTG"],
                 ],
                 columns=[],
-                drop_missing=False
+                drop_missing=False,
             ).T.round(3)
             # for col in df_categories.columns.get_level_values(0).unique():
             #     df_categories[col] = make_bold(

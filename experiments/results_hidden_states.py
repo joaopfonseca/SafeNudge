@@ -54,9 +54,9 @@ def get_generation_scores(prompt, response, model, clf):
         model.tokenizer(response)["input_ids"][1:]
     )
     scores = [
-        clf.predict_proba(
-            [model.get_hidden_state(prompt, "".join(output_tokens[:i]))]
-        )[0][1]
+        clf.predict_proba([model.get_hidden_state(prompt, "".join(output_tokens[:i]))])[
+            0
+        ][1]
         for i in range(len(output_tokens))
     ]
     return scores

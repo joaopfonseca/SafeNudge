@@ -7,6 +7,7 @@ import argparse
 import time
 
 import sys
+
 PROJ_PATH = join(dirname(__file__), pardir)
 sys.path.append(PROJ_PATH)
 
@@ -29,7 +30,7 @@ from ctg.new_ctg import ModelWrapper, CTG
 from ctg.perplexity import PerplexityCustom
 from ctg.evaluation_main import (
     test_instruction_following_strict,
-    test_instruction_following_loose
+    test_instruction_following_loose,
 )
 
 DATA_PATH = join(dirname(__file__), "data")
@@ -49,28 +50,22 @@ def ifeval_performance(df_results, df_ifeval):
     df_results.loc[ifeval_mask, "ifeval_strict"] = df_results.loc[ifeval_mask].apply(
         (
             lambda row: test_instruction_following_strict(
-                row.prompt,
-                row.response,
-                row.instruction_id_list,
-                row.kwargs
+                row.prompt, row.response, row.instruction_id_list, row.kwargs
             ).follow_all_instructions
         ),
-        axis=1
+        axis=1,
     )
     df_results.loc[ifeval_mask, "ifeval_loose"] = df_results.loc[ifeval_mask].apply(
         (
             lambda row: test_instruction_following_loose(
-                row.prompt,
-                row.response,
-                row.instruction_id_list,
-                row.kwargs
+                row.prompt, row.response, row.instruction_id_list, row.kwargs
             ).follow_all_instructions
         ),
-        axis=1
+        axis=1,
     )
-    df_results[["ifeval_strict", "ifeval_loose"]] = (
-        df_results[["ifeval_strict", "ifeval_loose"]].astype(float)
-    )
+    df_results[["ifeval_strict", "ifeval_loose"]] = df_results[
+        ["ifeval_strict", "ifeval_loose"]
+    ].astype(float)
     return df_results
 
 
@@ -110,7 +105,7 @@ def load_data():
 if __name__ == "__main__":
     cache_dir = "/scratch/jpm9748/"
     model_path = "meta-llama/Llama-Guard-3-8B"
-    device = 'cuda'
+    device = "cuda"
 
     try:
         if torch.cuda.memory_allocated(0) == 0:
@@ -139,9 +134,9 @@ if __name__ == "__main__":
 
     df = load_data()
 
-    df['llamaguard_res'] = ''
-    df['llamaguard_prompt'] = ''
-    df['llamaguard_unsafe'] = 0
+    df["llamaguard_res"] = ""
+    df["llamaguard_prompt"] = ""
+    df["llamaguard_unsafe"] = 0
     for i in tqdm(list(range(df.shape[0]))):
         # Prompt
         prompt = df.loc[i, "prompt"]
@@ -154,9 +149,9 @@ if __name__ == "__main__":
 
         # Truncate response for advbench responses
         if dataset == "advbench":
-            idx = response.find('\n\n')
+            idx = response.find("\n\n")
             if idx > -1:
-                response = response[idx+2:]
+                response = response[idx + 2 :]
 
         # Get responses evaluations
         chat = [
@@ -177,7 +172,7 @@ if __name__ == "__main__":
             res = tokenizer.decode(output[0][prompt_len:], skip_special_tokens=True)
             del input_ids, output, prompt_len
 
-        df.loc[i, 'llamaguard_res'] = res
+        df.loc[i, "llamaguard_res"] = res
 
         if res.find("un") > -1:
             df.loc[i, "llamaguard_unsafe"] = 1
@@ -201,17 +196,23 @@ if __name__ == "__main__":
             res = tokenizer.decode(output[0][prompt_len:], skip_special_tokens=True)
             del input_ids, output, prompt_len
 
-        df.loc[i, 'llamaguard_prompt'] = res
+        df.loc[i, "llamaguard_prompt"] = res
 
-    df['tp_llamaguard'] = df.apply(
+    df["tp_llamaguard"] = df.apply(
         lambda row: (
-            1 if ((row['llamaguard_unsafe'] == 1) and (row['dataset'] == 'advbench')) else 0
+            1
+            if ((row["llamaguard_unsafe"] == 1) and (row["dataset"] == "advbench"))
+            else 0
         ),
-        axis=1
+        axis=1,
     )
-    df['fp_llamaguard'] = df.apply(
-        lambda row: 1 if ((row['llamaguard_unsafe'] == 1) and (row['dataset'] == 'ifeval')) else 0,
-        axis=1
+    df["fp_llamaguard"] = df.apply(
+        lambda row: (
+            1
+            if ((row["llamaguard_unsafe"] == 1) and (row["dataset"] == "ifeval"))
+            else 0
+        ),
+        axis=1,
     )
 
     # Run IfEval performance evaluation
