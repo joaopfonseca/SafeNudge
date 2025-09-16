@@ -1,9 +1,0 @@
-ml-research
-sentence-transformers>=3.3.1
-transformers>=4.46.3
-torch>=2.5.1
-tqdm==4.67.0
-pandas>=2.2.3
-numpy>=2.0.2
-matplotlib>=3.9.2
-scikit-learn>=1.5.2
